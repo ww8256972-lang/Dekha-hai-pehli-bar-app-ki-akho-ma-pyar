@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary_emerald">#0F5132</color>
+    <color name="primary_emerald_light">#198754</color>
+    <color name="primary_emerald_container">#D1E7DD</color>
+    <color name="gold_accent">#D4A017</color>
+    <color name="gold_container">#FFF3CD</color>
+    <color name="status_red">#DC3545</color>
+    <color name="status_green">#198754</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">ASLAM RECORD</string>
+    <string name="shop_tagline">Bidi Business &amp; Accounts Ledger</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_products">Products</string>
+    <string name="nav_records">Records</string>
+    <string name="nav_reports">Reports</string>
+    <string name="nav_ai">ASLAM AI</string>
+    <string name="nav_settings">Settings</string>
+</resources>
