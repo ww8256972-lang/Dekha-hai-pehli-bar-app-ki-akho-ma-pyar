@@ -19,9 +19,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.SaleEntity
 import com.example.domain.FinancialReport
+import com.example.domain.ShopBranch
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.ShopViewModel
+import com.example.util.RecordBarcodeView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,6 +42,9 @@ fun DashboardScreen(
     val lowStock by viewModel.lowStockProducts.collectAsState()
     val sales by viewModel.sales.collectAsState()
     val customersWithDue by viewModel.customersWithDue.collectAsState()
+    val activeBranch by viewModel.activeBranch.collectAsState()
+
+    var selectedSaleForBarcode by remember { mutableStateOf<SaleEntity?>(null) }
 
     val totalUdhar = remember(customersWithDue) {
         customersWithDue.sumOf { it.outstandingBalance }
@@ -73,9 +79,10 @@ fun DashboardScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "Bidi Business & Accounts Ledger",
+                            text = activeBranch.name,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -174,24 +181,34 @@ fun DashboardScreen(
                             color = OnGoldContainer
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "दुकान के हिसाब-किताब का तुरंत जवाब पाएं। नीचे क्लिक करें:",
-                        fontSize = 12.sp,
-                        color = OnGoldContainer.copy(alpha = 0.9f)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Prominent CHAT NOW Button with Black Background (#000000) and Bold Red Text (#FF0000)
+                    Button(
+                        onClick = { onNavigateToAi(null) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF000000),
+                            contentColor = Color(0xFFFF0000)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .testTag("btn_ai_chat_now")
                     ) {
-                        SuggestionChip(
-                            onClick = { onNavigateToAi("आज कितनी बिक्री हुई?") },
-                            label = { Text("आज की बिक्री?", fontSize = 11.sp) }
+                        Icon(
+                            Icons.Default.Chat,
+                            contentDescription = null,
+                            tint = Color(0xFFFF0000),
+                            modifier = Modifier.size(20.dp)
                         )
-                        SuggestionChip(
-                            onClick = { onNavigateToAi("किस ग्राहक का कितना उधार बाकी है?") },
-                            label = { Text("बकाया उधार?", fontSize = 11.sp) }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "CHAT NOW",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 16.sp,
+                            color = Color(0xFFFF0000)
                         )
                     }
                 }
@@ -352,7 +369,10 @@ fun DashboardScreen(
         } else {
             items(sales.take(5)) { sale ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedSaleForBarcode = sale }
+                        .testTag("recent_sale_${sale.id}"),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(12.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -365,11 +385,20 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text(
-                                text = sale.invoiceNumber,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = sale.invoiceNumber,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    Icons.Default.QrCode,
+                                    contentDescription = "View Barcode",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                             Text(
                                 text = "${sale.customerName} • ${sale.paymentMethod}",
                                 fontSize = 12.sp,
@@ -408,6 +437,37 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    // Modal: Transaction Barcode & Google Lens Details Dialog
+    selectedSaleForBarcode?.let { sale ->
+        AlertDialog(
+            onDismissRequest = { selectedSaleForBarcode = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.QrCode2, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Auto-Barcode & Details", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                val items = remember(sale.itemsJson) {
+                    viewModel.parseSaleItems(sale.itemsJson)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RecordBarcodeView(
+                        sale = sale,
+                        items = items,
+                        shopName = activeBranch.name
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { selectedSaleForBarcode = null }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 

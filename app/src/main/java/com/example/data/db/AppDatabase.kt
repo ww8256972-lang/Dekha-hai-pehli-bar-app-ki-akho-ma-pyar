@@ -4,12 +4,10 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.dao.*
 import com.example.data.model.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -35,6 +33,24 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        // Safe migration from version 1 to 2 ensuring zero data loss
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `suppliers` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `phone` TEXT NOT NULL,
+                        `company` TEXT NOT NULL,
+                        `balance` REAL NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -42,8 +58,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aslam_record_database"
                 )
+                .addMigrations(MIGRATION_1_2)
                 .addCallback(DatabaseCallback())
-                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
@@ -53,23 +69,12 @@ abstract class AppDatabase : RoomDatabase() {
         private class DatabaseCallback : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
-                // Clean startup: Do not add any demo grocery items.
-                // Database starts clean and genuine, ready for user inputs.
+                // Clean startup: Database starts clean and genuine, ready for user inputs.
             }
 
             override fun onOpen(db: SupportSQLiteDatabase) {
                 super.onOpen(db)
-                // Clean up any known demo/sample products if they were somehow present
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        db.execSQL(
-                            "DELETE FROM products WHERE name IN (" +
-                            "'Basmati Premium Rice', 'Bath Soap', 'Dairy Fresh Milk', " +
-                            "'Premium Tea Dust', 'Refined Sugar', 'Sunflower Cooking Oil', " +
-                            "'Washing Powder', 'Whole Wheat Atta')"
-                        )
-                    } catch (_: Exception) {}
-                }
+                // Safe operation: Zero automatic deletion of user records.
             }
         }
     }

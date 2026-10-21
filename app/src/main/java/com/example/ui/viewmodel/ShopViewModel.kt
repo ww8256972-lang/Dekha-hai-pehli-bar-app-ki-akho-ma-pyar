@@ -10,6 +10,7 @@ import com.example.domain.AiChatMessage
 import com.example.domain.FinancialReport
 import com.example.domain.SaleItem
 import com.example.domain.ShopProfile
+import com.example.domain.ShopBranch
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -37,7 +38,94 @@ class ShopViewModel(private val repository: ShopRepository) : ViewModel() {
     val expenses: StateFlow<List<ExpenseEntity>> = repository.getAllExpenses()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val suppliers: StateFlow<List<SupplierEntity>> = repository.getAllSuppliers()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun insertSupplier(supplier: SupplierEntity) {
+        viewModelScope.launch {
+            repository.insertSupplier(supplier)
+        }
+    }
+
+    fun updateSupplier(supplier: SupplierEntity) {
+        viewModelScope.launch {
+            repository.updateSupplier(supplier)
+        }
+    }
+
+    fun getAppDatabase(): com.example.data.db.AppDatabase = repository.getDatabase()
+
     val shopProfile = MutableStateFlow(ShopProfile())
+
+    // Multi-Shop Management
+    private val _branches = MutableStateFlow<List<ShopBranch>>(
+        listOf(
+            ShopBranch(
+                id = "branch_main",
+                name = "ASLAM RECORD — Main Branch (Head Office)",
+                branchCode = "BR-01",
+                phone = "+91 98765 43210",
+                address = "Main Bazar, Shop No. 12",
+                isPrimary = true,
+                description = "Primary wholesale bidi & tobacco branch"
+            ),
+            ShopBranch(
+                id = "branch_dalmot",
+                name = "ASLAM Dalmot Depot (Unit 2)",
+                branchCode = "BR-02",
+                phone = "+91 98765 43211",
+                address = "Industrial Area, Godown 4",
+                isPrimary = false,
+                description = "Dalmot snacks manufacturing & packaging center"
+            ),
+            ShopBranch(
+                id = "branch_east",
+                name = "ASLAM Bidi Wholesale (Branch 3)",
+                branchCode = "BR-03",
+                phone = "+91 98765 43212",
+                address = "Station Road, Shop 5",
+                isPrimary = false,
+                description = "Regional distribution & retailer supply point"
+            )
+        )
+    )
+    val branches: StateFlow<List<ShopBranch>> = _branches.asStateFlow()
+
+    private val _activeBranch = MutableStateFlow<ShopBranch>(_branches.value.first())
+    val activeBranch: StateFlow<ShopBranch> = _activeBranch.asStateFlow()
+
+    fun switchBranch(branchId: String) {
+        _branches.value.find { it.id == branchId }?.let { selected ->
+            _activeBranch.value = selected
+            shopProfile.value = shopProfile.value.copy(
+                name = selected.name,
+                phone = selected.phone,
+                address = selected.address
+            )
+        }
+    }
+
+    fun addBranch(name: String, branchCode: String, phone: String, address: String, description: String) {
+        val newBranch = ShopBranch(
+            name = name,
+            branchCode = branchCode,
+            phone = phone,
+            address = address,
+            description = description
+        )
+        _branches.value = _branches.value + newBranch
+    }
+
+    fun deleteBranch(branchId: String) {
+        val currentList: List<ShopBranch> = _branches.value
+        if (currentList.size > 1) {
+            val remaining = currentList.filter { it.id != branchId }
+            _branches.value = remaining
+            if (_activeBranch.value.id == branchId) {
+                switchBranch(remaining.first().id)
+            }
+        }
+    }
 
     // Theme Mode
     private val _isDarkMode = MutableStateFlow(false)

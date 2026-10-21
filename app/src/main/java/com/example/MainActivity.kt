@@ -21,6 +21,9 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -167,7 +170,9 @@ class MainActivity : FragmentActivity() {
                     restore = { route ->
                         listOf(
                             Screen.Dashboard, Screen.RecordSale, Screen.Products,
-                            Screen.Customers, Screen.Reports, Screen.AslamAi, Screen.Calculator
+                            Screen.Customers, Screen.Suppliers, Screen.Reports,
+                            Screen.BackupRestore, Screen.AslamAi, Screen.Calculator,
+                            Screen.SecuritySettings, Screen.SyncStatus
                         ).firstOrNull { it.route == route } ?: Screen.Dashboard
                     }
                 )
@@ -309,6 +314,19 @@ class MainActivity : FragmentActivity() {
                             )
 
                             NavigationDrawerItem(
+                                label = { Text("Suppliers & Vendor Ledger", fontWeight = FontWeight.SemiBold) },
+                                icon = { Icon(Icons.Default.LocalShipping, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                selected = currentScreen == Screen.Suppliers,
+                                onClick = {
+                                    currentScreen = Screen.Suppliers
+                                    scope.launch { drawerState.close() }
+                                },
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp)
+                                    .testTag("drawer_item_suppliers")
+                            )
+
+                            NavigationDrawerItem(
                                 label = {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -369,16 +387,16 @@ class MainActivity : FragmentActivity() {
                             )
 
                             NavigationDrawerItem(
-                                label = { Text("Lock Ledger (बायोमेट्रिक लॉक)", fontWeight = FontWeight.SemiBold) },
-                                icon = { Icon(Icons.Default.Fingerprint, contentDescription = null, tint = StatusGreen) },
-                                selected = false,
+                                label = { Text("Settings & Security", fontWeight = FontWeight.SemiBold) },
+                                icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                selected = currentScreen == Screen.Settings,
                                 onClick = {
+                                    currentScreen = Screen.Settings
                                     scope.launch { drawerState.close() }
-                                    isAppLocked = true
                                 },
                                 modifier = Modifier
                                     .padding(horizontal = 12.dp)
-                                    .testTag("drawer_item_lock_app")
+                                    .testTag("drawer_item_settings")
                             )
 
                             Spacer(modifier = Modifier.weight(1f))
@@ -431,32 +449,31 @@ class MainActivity : FragmentActivity() {
                                     }
                                 },
                                 title = {
-                                    Column {
-                                        Text(
-                                            text = "ASLAM RECORD",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 18.sp
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.aslam_record_icon),
+                                            contentDescription = "ASLAM RECORD Official Logo",
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.Crop
                                         )
-                                        Text(
-                                            text = currentScreen.title,
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = "ASLAM RECORD",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 17.sp
+                                            )
+                                            Text(
+                                                text = currentScreen.title,
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                            )
+                                        }
                                     }
                                 },
                                 actions = {
-                                    // Lock App button
-                                    IconButton(
-                                        onClick = { isAppLocked = true },
-                                        modifier = Modifier.testTag("top_bar_lock_app")
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Lock,
-                                            contentDescription = "Lock App",
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-                                        )
-                                    }
-
                                     // Quick theme toggle in top bar
                                     IconButton(
                                         onClick = { isDarkMode = !isDarkMode },
@@ -480,6 +497,18 @@ class MainActivity : FragmentActivity() {
                                             Icons.Default.AutoAwesome,
                                             contentDescription = "ASLAM AI Munshi",
                                             tint = GoldAccent
+                                        )
+                                    }
+
+                                    // Single entry point for all security and management settings
+                                    IconButton(
+                                        onClick = { currentScreen = Screen.Settings },
+                                        modifier = Modifier.testTag("top_bar_settings")
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Settings,
+                                            contentDescription = "Settings & Security",
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                                         )
                                     }
                                 },
@@ -546,6 +575,23 @@ class MainActivity : FragmentActivity() {
                                 )
                                 Screen.Calculator -> CalculatorScreen(
                                     onNavigateBack = { currentScreen = Screen.Dashboard }
+                                )
+                                Screen.Suppliers -> SuppliersScreen(
+                                    viewModel = viewModel
+                                )
+                                Screen.BackupRestore -> BackupRestoreScreen(
+                                    viewModel = viewModel
+                                )
+                                Screen.SecuritySettings -> SecuritySettingsScreen()
+                                Screen.SyncStatus -> SyncStatusScreen(
+                                    viewModel = viewModel,
+                                    onNavigateToBackup = { currentScreen = Screen.BackupRestore }
+                                )
+                                Screen.Settings -> SettingsScreen(
+                                    viewModel = viewModel,
+                                    onLockRequested = { isAppLocked = true },
+                                    onNavigateToBackup = { currentScreen = Screen.BackupRestore },
+                                    onNavigateToSync = { currentScreen = Screen.SyncStatus }
                                 )
                             }
                         }

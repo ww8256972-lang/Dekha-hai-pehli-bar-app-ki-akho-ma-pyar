@@ -42,3 +42,14 @@ data class AiChatMessage(
     val message: String,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+@JsonClass(generateAdapter = true)
+data class ShopBranch(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val name: String,
+    val branchCode: String = "BR-01",
+    val phone: String = "+91 98765 43210",
+    val address: String = "Main Bazar, Shop No. 12",
+    val isPrimary: Boolean = false,
+    val description: String = ""
+)

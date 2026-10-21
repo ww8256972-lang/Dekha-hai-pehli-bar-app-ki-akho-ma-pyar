@@ -40,6 +40,7 @@ import com.example.domain.SaleItem
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.ShopViewModel
 import com.example.util.PdfGenerator
+import com.example.util.RecordBarcodeView
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1264,6 +1265,16 @@ fun RecordSaleScreen(
                             }
                         }
                     }
+
+                    // Auto-Generated Barcode & Google Lens Scannable Card
+                    val saleItemsList = remember(sale.itemsJson) {
+                        viewModel.parseSaleItems(sale.itemsJson)
+                    }
+                    RecordBarcodeView(
+                        sale = sale,
+                        items = saleItemsList,
+                        shopName = shopProfile.name
+                    )
 
                     // Direct WhatsApp Action Buttons
                     if (customerPhone.isNotBlank()) {

@@ -51,6 +51,9 @@ class ShopRepository(private val database: AppDatabase) {
 
     fun getAllSuppliers(): Flow<List<SupplierEntity>> = supplierDao.getAllSuppliers()
     suspend fun insertSupplier(supplier: SupplierEntity): Long = supplierDao.insertSupplier(supplier)
+    suspend fun updateSupplier(supplier: SupplierEntity) = supplierDao.updateSupplier(supplier)
+    suspend fun deleteSupplier(supplier: SupplierEntity) = supplierDao.deleteSupplier(supplier)
+    fun getDatabase(): AppDatabase = database
 
     suspend fun recordSale(
         customerId: Long?,

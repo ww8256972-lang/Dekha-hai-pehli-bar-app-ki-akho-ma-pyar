@@ -3,6 +3,8 @@ package com.example.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -45,6 +47,35 @@ fun AslamAiScreen(
 
     // rememberSaveable keeps the typed draft alive across keyboard/config changes and process death
     var inputPrompt by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+
+    // Text to Speech for Read Aloud
+    var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
+    var speakingMessageId by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(context) {
+        var tts: TextToSpeech? = null
+        tts = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                try {
+                    val hindiLocale = Locale("hi", "IN")
+                    val result = tts?.setLanguage(hindiLocale)
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        tts?.setLanguage(Locale.getDefault())
+                    }
+                } catch (_: Exception) {
+                    tts?.setLanguage(Locale.getDefault())
+                }
+            }
+        }
+        textToSpeech = tts
+
+        onDispose {
+            try {
+                tts?.stop()
+                tts?.shutdown()
+            } catch (_: Exception) {}
+        }
+    }
 
     // Auto-fill and send initialPrompt if passed
     LaunchedEffect(initialPrompt) {
@@ -215,23 +246,88 @@ fun AslamAiScreen(
                                         color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
                                     )
                                 }
-                                IconButton(
-                                    onClick = {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("ASLAM AI Reply", msg.message)
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
-                                    },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(14.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (!isUser) {
+                                        // Read Aloud / Stop Button
+                                        IconButton(
+                                            onClick = {
+                                                if (speakingMessageId == msg.id) {
+                                                    textToSpeech?.stop()
+                                                    speakingMessageId = null
+                                                } else {
+                                                    textToSpeech?.stop()
+                                                    speakingMessageId = msg.id
+                                                    textToSpeech?.speak(msg.message, TextToSpeech.QUEUE_FLUSH, null, msg.id)
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .testTag("btn_read_aloud_${msg.id}")
+                                        ) {
+                                            Icon(
+                                                if (speakingMessageId == msg.id) Icons.Default.Stop else Icons.Default.VolumeUp,
+                                                contentDescription = if (speakingMessageId == msg.id) "Stop Reading" else "Read Aloud",
+                                                tint = if (speakingMessageId == msg.id) StatusRed else MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+
+                                    // Copy Button (Preserved)
+                                    IconButton(
+                                        onClick = {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clip = ClipData.newPlainText("ASLAM AI Reply", msg.message)
+                                            clipboard.setPrimaryClip(clip)
+                                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .testTag("btn_copy_ai_${msg.id}")
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ContentCopy,
+                                            contentDescription = "Copy",
+                                            tint = MaterialTheme.colorScheme.outline,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+
+                                    if (!isUser) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+
+                                        // Share Button
+                                        IconButton(
+                                            onClick = {
+                                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                    type = "text/plain"
+                                                    putExtra(Intent.EXTRA_TEXT, msg.message)
+                                                    putExtra(Intent.EXTRA_SUBJECT, "ASLAM AI Business Insight")
+                                                }
+                                                context.startActivity(Intent.createChooser(shareIntent, "Share ASLAM AI Insight"))
+                                            },
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .testTag("btn_share_ai_${msg.id}")
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Share,
+                                                contentDescription = "Share",
+                                                tint = MaterialTheme.colorScheme.outline,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = msg.message,
-                                fontSize = 13.sp,
-                                lineHeight = 20.sp,
+                                fontSize = if (isUser) 14.sp else 17.sp,
+                                lineHeight = if (isUser) 21.sp else 26.sp,
+                                fontWeight = if (isUser) FontWeight.Normal else FontWeight.Medium,
                                 color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
